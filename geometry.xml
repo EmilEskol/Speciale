@@ -1,0 +1,16 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<geometry>
+  <cell id="1" material="void" name="fuel" region="2 -1" universe="1"/>
+  <cell id="2" material="19" name="moderator" region="(-4 -3) | (5 -6)" universe="1"/>
+  <cell id="3" material="void" name="blanket" region="6 -7" universe="1"/>
+  <cell id="4" material="void" region="7 -8" universe="1"/>
+  <cell id="5" material="17" name="air" region="-4 3" universe="1"/>
+  <surface coeffs="0.0 0.0 0.0 50" id="1" name="fuel_outer" type="sphere"/>
+  <surface coeffs="0.0 0.0 0.0 48" id="2" name="fuel_inner" type="sphere"/>
+  <surface coeffs="0 1 0 36" id="3" type="plane"/>
+  <surface coeffs="0.0 0.0 0.0 48" id="4" type="sphere"/>
+  <surface coeffs="0.0 0.0 0.0 50" id="5" type="sphere"/>
+  <surface coeffs="0.0 0.0 0.0 87" id="6" type="sphere"/>
+  <surface coeffs="0.0 0.0 0.0 100" id="7" name="outer_sphere" type="sphere"/>
+  <surface boundary="reflective" coeffs="0.0 0.0 0.0 100.0001" id="8" type="sphere"/>
+</geometry>
