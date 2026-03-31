@@ -81,12 +81,11 @@
     <nuclide ao="0.001057636404044994" name="U238"/>
   </material>
   <material id="20" name="Air">
-    <density units="g/cm3" value="24.352839175602057"/>
+    <density units="g/cm3" value="24.351443745687003"/>
     <nuclide ao="0.7782388307" name="N14"/>
     <nuclide ao="0.0028611693000000003" name="N15"/>
-    <nuclide ao="0.20910127776" name="O16"/>
+    <nuclide ao="0.20952056160000002" name="O16"/>
     <nuclide ao="7.94384e-05" name="O17"/>
-    <nuclide ao="0.00041928384" name="O18"/>
     <nuclide ao="3.1024799999999995e-05" name="Ar36"/>
     <nuclide ao="5.849699999999999e-06" name="Ar38"/>
     <nuclide ao="0.009263125499999999" name="Ar40"/>
