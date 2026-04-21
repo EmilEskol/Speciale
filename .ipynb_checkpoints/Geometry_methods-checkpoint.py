@@ -1,7 +1,7 @@
 import openmc
-class Openmc_Helper:
+class Geometry_helper:
     '''Class with useful openmc methods'''
-    
+    @staticmethod
     def set_mat(name,materials=None):
         fuel_mat = None
         water = None
@@ -27,7 +27,7 @@ class Openmc_Helper:
                 blanket_CA = mat
             
         return fuel_mat, heavy_water, water, blanket_CA, air, materials
-        
+    @staticmethod    
     def get_material_by_name(name,materials):
         found_mat = None
         for mat in materials:
@@ -36,7 +36,7 @@ class Openmc_Helper:
         if found_mat is None:
             print(f'No material was found with the name {name}')
         return found_mat
-    
+    @staticmethod
     def make_settings(geom):
         inner_fuel_radius = geom.get_surfaces_by_name('fuel_inner')[0].bounding_box('-')[1][0]
         outer_fuel_radius = geom.get_surfaces_by_name('fuel_outer')[0].bounding_box('-')[1][0]
@@ -54,10 +54,10 @@ class Openmc_Helper:
         settings.inactive = 10
         settings.particles = 10000
         return settings
-    
+    @staticmethod
     def set_geom_fuel_shell(sphere_ir,sphere_or,water_or,with_blanket=False,blanket_or=0,inner_moderator_height=-1
                             , materials= None,fuel_name="Fuel CA_1"):
-        fuel_material, heavy_water, water, blanket_CA, air, mat = set_mat(fuel_name, materials)
+        fuel_material, heavy_water, water, blanket_CA, air, mat = Geometry_helper.set_mat(fuel_name, materials)
         eps=0.0001 # constant to make sure geomitries dont overlap
         
         fuel_or = openmc.Sphere(r=sphere_or, name='fuel_outer' ) #fuel cylinder with outer radius
@@ -112,3 +112,13 @@ class Openmc_Helper:
         geom.root_universe = root
     
         return geom, mat
+
+        @staticmethod
+        def shell_vol_calc(outer_radius,inner_radius):
+        
+            volume=4/3*np.pi*(outer_radius**3-inner_radius**3)
+            return volume
+        
+        @staticmethod
+        def sphere_cap_vol(r,h):
+            return 1/3*np.pi*h**2*(3*r-h)
