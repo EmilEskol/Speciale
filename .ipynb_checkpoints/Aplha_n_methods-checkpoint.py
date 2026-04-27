@@ -1,6 +1,8 @@
 import openmc
 import os
 import re
+import time
+import numpy as np
 
 class Alpha_N_calc:
     '''Class containning methods used in alpha_N claculations'''
@@ -85,6 +87,7 @@ class Alpha_N_calc:
             f.write('---Output Stopping Units (1-8)\r\n')
             f.write('1\r\n')  # Units eV / Angstrom
             f.write('---Ion Energy : E-Min(keV), E-Max(keV)\r\n')
+            print('energy span',E_min,E_max)
             f.write(f'{E_min}\t{E_max}')
             f.write(f'\r\n\r\n\r\n\r\n\r\n\r\n')
 
@@ -102,7 +105,10 @@ class Alpha_N_calc:
         
         Returns
         -------
-        energies :array[float], stopping_powers: array[float]
+        energies :array[float]
+            energy array in eV
+        stopping_powers: array[float]
+            in eV/Angstrom
         '''
         
         #Import file
@@ -129,10 +135,10 @@ class Alpha_N_calc:
                     break
                 if unit == 'keV':
                     energy = float(energy.replace(",", "."))
-                    energies.append(energy/1000)
+                    energies.append(energy*1000)
                 elif unit=="MeV":
                     energy = float(energy.replace(",", "."))
-                    energies.append(energy)
+                    energies.append(energy*1e6)
                 else:
                     print("Something went wrong in line",results)
                 val1 = float(val1.replace(",", "."))
@@ -142,7 +148,7 @@ class Alpha_N_calc:
         return energies,stopping_powers
         
     @staticmethod
-    def SR_file_write_and_read(mat,shared_folder="/root/SR_Module"):
+    def SR_file_write_and_read(mat,E_min=10,E_max=10000,shared_folder="/root/SR_Module",new_file=True):
         '''
         Method for write input and read output from SR module that calculates stopping power
             Waits until SR-module has been run in windows
@@ -159,10 +165,12 @@ class Alpha_N_calc:
         '''
         
         input_file = os.path.join(shared_folder, "SR.IN")
-        Alpha_N_calc.SR_file_write_IN(input_file,mat,E_min=10,E_max=10000,state=0)
+        Alpha_N_calc.SR_file_write_IN(input_file,mat,E_min=E_min,E_max=E_max,state=0)
     
         print("Waiting for SRModule to produce output...")
         output_file = os.path.join(shared_folder, mat.name)
+        if new_file:
+            os.remove(output_file)
         while not os.path.exists(output_file):
             time.sleep(1)  # check every second
     
@@ -171,179 +179,199 @@ class Alpha_N_calc:
     
     @staticmethod
     def make_AZ_Str(AZ):
-    '''
-    Method for making sure that number has 3 digits as in endf files and turns the numbers into strings
-    Parameters
-    ----------
-    AZ: int
-        either takes atom number (Z) or mass number (A)
-    Returns
-    -------
-    AZstr: str
-    '''
-    #
-    if AZ < 10:
-        AZstr = f"00{AZ}"
-    elif AZ < 100:
-        AZstr = f"0{AZ}"
-    else:
-        AZstr = f"{AZ}"
-    return AZstr
-
-    def get_decay_data(nuclide_name):
-    '''
-    Getter for decay data from endf files using nuclide name
-    ----------
-    nuclide_name: str
-        name of the nuclide in the form of U234
-    Returns
-    -------
-        dec: openmc.data.Decay
-    '''
-    #Isolating the atomic symbol
-    Z, A, m =openmc.data.zam(nuclide_name)
-    match = re.match(r"([A-Za-z]+)(\d+)(_)(m\d+)",nuclide_name)
-    m1=0
-    if match == None:
-        match = re.match(r"([A-Za-z]+)",nuclide_name)
-        symbol =match.groups()[0]
-    else:
-        symbol, _,_ ,m1 =match.groups()
-    
-    Z = make_AZ_Str(Z)
-    A = make_AZ_Str(A)
-
-    #Getting decay data from ground state or excited (m1)
-    try:
-        if m1 != 0:
-            dec = openmc.data.Decay.from_endf(f"../endf-b-vii.1/decay/dec-{Z}_{symbol}_{A}{m1}.endf")
+        '''
+        Method for making sure that number has 3 digits as in endf files and turns the numbers into strings
+        Parameters
+        ----------
+        AZ: int
+            either takes atom number (Z) or mass number (A)
+        Returns
+        -------
+        AZstr: str
+        '''
+        #
+        if AZ < 10:
+            AZstr = f"00{AZ}"
+        elif AZ < 100:
+            AZstr = f"0{AZ}"
         else:
-            dec = openmc.data.Decay.from_endf(f"../endf-b-vii.1/decay/dec-{Z}_{symbol}_{A}.endf")
-    except Keyerror:
-        print("ERROR",Keyerror)
-        dec = None
-    return dec
+            AZstr = f"{AZ}"
+        return AZstr
+    @staticmethod
+    def has_alpha_decay(nuclide):
+        '''
+        Checking if atoms have alpha decay
+        ----------
+        nuclide: [str,...]
+            name of the nuclide in the form of U234 needs to be first entry in a array
+        Returns
+        -------
+            boolean
+        '''
+        nuclide_name=nuclide[0]
+        dec = Alpha_N_calc.get_decay_data(nuclide_name)
+        for mode in dec.modes:
+            if mode.modes[0] == "alpha":
+                return True
+        return False  
+    
+    @staticmethod
+    def get_decay_data(nuclide_name):
+        '''
+        Getter for decay data from endf files using nuclide name
+        ----------
+        nuclide_name: str
+            name of the nuclide in the form of U234
+        Returns
+        -------
+            dec: openmc.data.Decay
+        '''
+        #Isolating the atomic symbol
+        Z, A, m =openmc.data.zam(nuclide_name)
+        match = re.match(r"([A-Za-z]+)(\d+)(_)(m\d+)",nuclide_name)
+        m1=0
+        if match == None:
+            match = re.match(r"([A-Za-z]+)",nuclide_name)
+            symbol =match.groups()[0]
+        else:
+            symbol, _,_ ,m1 =match.groups()
+        
+        Z = Alpha_N_calc.make_AZ_Str(Z)
+        A = Alpha_N_calc.make_AZ_Str(A)
+    
+        #Getting decay data from ground state or excited (m1)
+        try:
+            if m1 != 0:
+                dec = openmc.data.Decay.from_endf(f"../endf-b-vii.1/decay/dec-{Z}_{symbol}_{A}{m1}.endf")
+            else:
+                dec = openmc.data.Decay.from_endf(f"../endf-b-vii.1/decay/dec-{Z}_{symbol}_{A}.endf")
+        except Keyerror:
+            print("ERROR",Keyerror)
+            dec = None
+        return dec
 
     @staticmethod
-    def alpha_decay_values_from_material(material,geom,cell_name,show_discarded=False):
-    '''
-    Method for finding aplha source for a given material. Using volume of the openmc.Material
-    Parameters
-    ----------
-    material: openmc.Material
-        material to analyze
-    geom: openmc.Geometry
-        geometry for the given problem used to calculated the amount of atoms
-    cell_name: str
-        name of the openmc.Geometry cell the material is in
-    show_discarded: boolean
-        enables the printing of every material discarded do to no alha emission
-    
-    Returns
-    -------
-    result:arrays[str,flaot,float,float,float]
-        [nuclide_name,activities,energies,energy_sted_devs, mass in kg]
-    material_mass: float
-        total mass of the material
-    None
-    '''
-    result = []
-    material_mass = 0
-    material_cell = geom.get_cells_by_name(cell_name)[0]
-    material_cell.fill = material
-
-    #Getting the volume from the material
-    try:
-        material_cell.volume = material.volume
-    except Exception as e:
-        print(f'Error no material volume defined {e}')
-    
-    
-    for nuclide_name, nuclide_amount_percent,_ in material.nuclides:
-        Z, A, m =openmc.data.zam(nuclide_name)
-        nuclide_amount = material_cell.atoms[nuclide_name]
-        nuclide_mass = openmc.data.atomic_mass(nuclide_name)
-        total_mass = nuclide_mass*nuclide_amount
-        material_mass += total_mass
+    def alpha_decay_values_from_material(material,show_discarded=False):
+        '''
+        Method for finding aplha source for a given material. Using volume of the openmc.Material
+        Parameters
+        ----------
+        material: openmc.Material
+            material to analyze
+        geom: openmc.Geometry
+            geometry for the given problem used to calculated the amount of atoms
+        cell_name: str
+            name of the openmc.Geometry cell the material is in
+        show_discarded: boolean
+            enables the printing of every material discarded do to no alha emission
         
-        dec = get_decay_data(nuclide_name)
-
-        #Seeing if decay constant is possible to return
+        Returns
+        -------
+        result:arrays[str,flaot,float,float,float]
+            [nuclide_name,activities,energies,energy_sted_devs, mass in kg]
+        material_mass: float
+            total mass of the material
+        None
+        '''
+        result = []
+        material_mass = 0
+        material_cell = openmc.Cell(1,'fuel')
+        material_cell.fill = material
+    
+        #Getting the volume from the material
         try:
-            decay_constant = dec.decay_constant.nominal_value #log(2)/half_life
-        except ValueError as e:
-            if show_discarded:
-                print(f"Skipping {dec.nuclide['name']} amount: {nuclide_amount:.3g}: {e}")
-                decay_constant = 0
+            material_cell.volume = material.volume
+        except Exception as e:
+            print(f'Error no material volume defined {e}')
         
-        #Finding the spectra and calculating the activity
-        if len(dec.spectra)!=0 and has_alpha_decay([nuclide_name]):
-            alpha_data=dec.spectra['alpha']
-            energies = [float(item['energy'].nominal_value) for item in alpha_data['discrete']] #can be continuous or discrete
-            energy_std_devs = [float(item['energy'].std_dev) for item in alpha_data['discrete']]
-            intensities  = [float(item['intensity'].nominal_value) for item in alpha_data['discrete']]
-
-            #This is total activity
-            activities = [decay_constant*nuclide_amount*intensity for intensity in intensities] #Calculation of activities
-            result.append([nuclide_name,activities,energies,energy_std_devs, total_mass*1.6605402e-27])
-        else:
-            #Prints discarded decays due to no or very small activity or no data
-            if show_discarded:
-                activity=decay_constant*nuclide_amount
-                print(dec.nuclide['name'],f"activity: {activity:.3g} has no alpha spectra")
-
-    material_mass = material_mass*1.6605402e-27
-    return result, material_mass
+        
+        for nuclide_name, nuclide_amount_percent,_ in material.nuclides:
+            Z, A, m =openmc.data.zam(nuclide_name)
+            nuclide_amount = material_cell.atoms[nuclide_name]
+            nuclide_mass = openmc.data.atomic_mass(nuclide_name)
+            total_mass = nuclide_mass*nuclide_amount
+            material_mass += total_mass
+            
+            dec = Alpha_N_calc.get_decay_data(nuclide_name)
+    
+            #Seeing if decay constant is possible to return
+            try:
+                decay_constant = dec.decay_constant.nominal_value #log(2)/half_life
+            except ValueError as e:
+                if show_discarded:
+                    print(f"Skipping {dec.nuclide['name']} amount: {nuclide_amount:.3g}: {e}")
+                    decay_constant = 0
+            
+            #Finding the spectra and calculating the activity
+            if len(dec.spectra)!=0 and Alpha_N_calc.has_alpha_decay([nuclide_name]):
+                alpha_data=dec.spectra['alpha']
+                energies = [float(item['energy'].nominal_value) for item in alpha_data['discrete']] #can be continuous or discrete
+                energy_std_devs = [float(item['energy'].std_dev) for item in alpha_data['discrete']]
+                intensities  = [float(item['intensity'].nominal_value) for item in alpha_data['discrete']]
+    
+                #This is total activity
+                activities = [decay_constant*nuclide_amount*intensity for intensity in intensities] #Calculation of activities
+                result.append([nuclide_name,activities,energies,energy_std_devs, total_mass*1.6605402e-27])
+            else:
+                #Prints discarded decays due to no or very small activity or no data
+                if show_discarded:
+                    activity=decay_constant*nuclide_amount
+                    print(dec.nuclide['name'],f"activity: {activity:.3g} has no alpha spectra")
+    
+        material_mass = material_mass*1.6605402e-27
+        return result, material_mass
 
     @staticmethod
     def gaussian(A,a,b,x):
-    '''
-    Normalized gaussian function scaled with A
+        '''
+        Normalized gaussian function scaled with A
+        
+        Parameters
+        ----------
+        A: float
+            scaling of the normalized guassian
+        a: float
+            deviation of the gaussian
+        b: float
+            center of the peak in the gaussian
+        x: np.array([float])
     
-    Parameters
-    ----------
-    A: float
-        scaling of the normalized guassian
-    a: float
-        deviation of the gaussian
-    b: float
-        center of the peak in the gaussian
-    x: np.array([float])
-
-    Returns
-    -------
-    fx: np.array([float])
-        values for the gaussian function
-    '''
+        Returns
+        -------
+        fx: np.array([float])
+            values for the gaussian function
+        '''
         fx=A/(a*np.sqrt(2*np.pi))*np.exp(-(x-b)**2/(2*a**2))
         np.array(fx)
         return fx
     @staticmethod
-    def energy_spectra_gaussian(Spectra_data,min_lim = 3.5e6,max_lim = 5e6,number_of_points = 10000):
-    '''
-    Method for calculating a continius spectra given the activity, energy and energy deviation 
-    Parameters
-    ----------
-    Spectra_data: arrays[array[str],array[flaot],array[float],array[float],array[float]]
-        data from alpha_decay_values_from_material
-    min_lim: float
-        limit for the lowest value of the gaussian spectra
-    max_lim: float
-        limit for the highest value of the gaussian spectra
-    number_of_points: int
-        numbar of points in the spectra
-    Returns
-    -------
-    fx:np.array([float])
-        the normilized gaussian spectra of the data given
-    '''
-        x = np.linspace(min_lim,max_lim,int(number_of_points))
+    def energy_spectra_gaussian(Spectra_data,x=None,min_lim = 3.5e6,max_lim = 5e6,number_of_points = 10000):
+        '''
+        Method for calculating a continius spectra given the activity, energy and energy deviation 
+        Parameters
+        ----------
+        Spectra_data: arrays[array[str],array[flaot],array[float],array[float],array[float]]
+            data from alpha_decay_values_from_material
+        min_lim: float
+            limit for the lowest value of the gaussian spectra
+        max_lim: float
+            limit for the highest value of the gaussian spectra
+        number_of_points: int
+            numbar of points in the spectra
+        Returns
+        -------
+        fx:np.array([float])
+            the normilized gaussian spectra of the data given
+        '''
+        if x is None:
+            x = np.linspace(min_lim,max_lim,int(number_of_points))
+        elif sum(x)<100:
+            x = np.array(x)*1e6
+        else:
+            x = np.array(x)*1e6
         energy_spectra = np.zeros(len(x), dtype=float)
-        for name, activities, energies,energy_devs,_  in alpha_spectra_data:
+        for name, activities, energies,energy_devs,_  in Spectra_data:
             for activity,energy,energy_std_dev in zip(activities, energies,energy_devs):
-                print(activity,energy_std_dev,energy)
-                energy_spectra += gaussian(activity,energy_std_dev,energy,x)
-        return energy_spectra
-
-    
-    
+                #print(activity,energy_std_dev,energy)
+                energy_spectra += Alpha_N_calc.gaussian(activity,energy_std_dev,energy,x)
+        return energy_spectra,x
