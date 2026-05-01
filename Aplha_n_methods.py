@@ -157,6 +157,10 @@ class Alpha_N_calc:
         ----------
         mat: openmc.Material
             material, which needs stopping power calculated
+        E_min: float
+            minimum energy (keV)
+        E_max: float
+            maximum energy (keV)
         shared_folder: str
             path to the folder shared between windows and linux
         Returns
