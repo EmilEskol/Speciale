@@ -205,6 +205,7 @@ class Alpha_N_calc:
     def has_alpha_decay(nuclide):
         '''
         Checking if atoms have alpha decay
+        Parameters
         ----------
         nuclide: [str,...]
             name of the nuclide in the form of U234 needs to be first entry in a array
@@ -218,6 +219,33 @@ class Alpha_N_calc:
             if mode.modes[0] == "alpha":
                 return True
         return False  
+
+    @staticmethod
+    def isolate_atomic_symbol(nuclide_name):
+        '''
+        Takes nuclide name and isolates into symbol, Z, A as 'Li', '003' and '006' for Li6
+        Parameters
+        ----------
+        nuclide_name: str
+            name of the nuclide in the form of U234
+        Returns
+        -------
+        symbol: str
+            atomic symbol of the nuclide
+        Z: str
+            number of protons
+        A: str
+            number of nucleons
+        '''
+        #Isolating the atomic symbol
+        Z, A, m =openmc.data.zam(nuclide_name)
+    
+        match = re.match(r"([A-Za-z]+)",nuclide_name)
+        symbol =match.groups()[0]
+        
+        Z = Alpha_N_calc.make_AZ_Str(Z)
+        A = Alpha_N_calc.make_AZ_Str(A)
+        return symbol,Z,A
     
     @staticmethod
     def get_decay_data(nuclide_name):
@@ -230,7 +258,6 @@ class Alpha_N_calc:
         -------
             dec: openmc.data.Decay
         '''
-        #Isolating the atomic symbol
         Z, A, m =openmc.data.zam(nuclide_name)
         match = re.match(r"([A-Za-z]+)(\d+)(_)(m\d+)",nuclide_name)
         m1=0
@@ -242,7 +269,7 @@ class Alpha_N_calc:
         
         Z = Alpha_N_calc.make_AZ_Str(Z)
         A = Alpha_N_calc.make_AZ_Str(A)
-    
+        
         #Getting decay data from ground state or excited (m1)
         try:
             if m1 != 0:
@@ -275,6 +302,8 @@ class Alpha_N_calc:
             [nuclide_name,activities,energies,energy_sted_devs, mass in kg]
         material_mass: float
             total mass of the material
+        nuclide_amount: float?
+            total number of atoms in the cell with volume given by 
         None
         '''
         result = []
@@ -323,7 +352,7 @@ class Alpha_N_calc:
                     print(dec.nuclide['name'],f"activity: {activity:.3g} has no alpha spectra")
     
         material_mass = material_mass*1.6605402e-27
-        return result, material_mass
+        return result, material_mass, nuclide_amount
 
     @staticmethod
     def gaussian(A,a,b,x):
@@ -372,7 +401,8 @@ class Alpha_N_calc:
         elif sum(x)<100:
             x = np.array(x)*1e6
         else:
-            x = np.array(x)*1e6
+            print('given x is used')
+
         energy_spectra = np.zeros(len(x), dtype=float)
         for name, activities, energies,energy_devs,_  in Spectra_data:
             for activity,energy,energy_std_dev in zip(activities, energies,energy_devs):
