@@ -87,7 +87,7 @@ class Alpha_N_calc:
             f.write('---Output Stopping Units (1-8)\r\n')
             f.write('1\r\n')  # Units eV / Angstrom
             f.write('---Ion Energy : E-Min(keV), E-Max(keV)\r\n')
-            print('energy span',E_min,E_max)
+            #print('energy span',E_min,E_max)
             f.write(f'{E_min}\t{E_max}')
             f.write(f'\r\n\r\n\r\n\r\n\r\n\r\n')
 
@@ -110,7 +110,6 @@ class Alpha_N_calc:
         stopping_powers: array[float]
             in eV/Angstrom
         '''
-        
         #Import file
         output_file = os.path.join(shared_folder, fuel_name)
         
@@ -140,7 +139,7 @@ class Alpha_N_calc:
                     energy = float(energy.replace(",", "."))
                     energies.append(energy*1e6)
                 else:
-                    print("Something went wrong in line",results)
+                    print("Something went wrong in line",n)
                 val1 = float(val1.replace(",", "."))
                 val2 = float(val2.replace(",", "."))
                 stopping_powers.append(val1+val2)
@@ -148,7 +147,7 @@ class Alpha_N_calc:
         return energies,stopping_powers
         
     @staticmethod
-    def SR_file_write_and_read(mat,E_min=10,E_max=10000,shared_folder="/root/SR_Module",new_file=True):
+    def SR_file_write_and_read(mat,E_min=1e4,E_max=1e7,shared_folder="/root/SR_Module",new_file=True):
         '''
         Method for write input and read output from SR module that calculates stopping power
             Waits until SR-module has been run in windows
@@ -158,15 +157,20 @@ class Alpha_N_calc:
         mat: openmc.Material
             material, which needs stopping power calculated
         E_min: float
-            minimum energy (keV)
+            minimum energy (eV)
         E_max: float
-            maximum energy (keV)
+            maximum energy (eV)
         shared_folder: str
             path to the folder shared between windows and linux
         Returns
         -------
-        energies :array[float], stopping_powers: array[float]
+        energies :array[float]
+            energies in eV
+        stopping_powers: array[float]
+            stopping_power in eV/Å
         '''
+        E_min=int(E_min/1000)
+        E_max=int(E_max/1000)
         
         input_file = os.path.join(shared_folder, "SR.IN")
         Alpha_N_calc.SR_file_write_IN(input_file,mat,E_min=E_min,E_max=E_max,state=0)
@@ -174,11 +178,16 @@ class Alpha_N_calc:
         print("Waiting for SRModule to produce output...")
         output_file = os.path.join(shared_folder, mat.name)
         if new_file:
-            os.remove(output_file)
+            try:
+                os.remove(output_file)
+            except:
+                print('no file to remove')
+                
         while not os.path.exists(output_file):
             time.sleep(1)  # check every second
     
         energies,stopping_powers = Alpha_N_calc.SR_file_read(mat.name,shared_folder)
+        energies=np.array(energies)
         return energies,stopping_powers
     
     @staticmethod
