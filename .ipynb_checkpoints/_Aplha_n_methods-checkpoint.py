@@ -130,7 +130,7 @@ class Alpha_N_calc:
                 try:
                     energy, unit, val1, val2, a1, unit1, a2, unit2, a3, unit3 = line.split()
                 except:
-                    print('end of file')
+                    #print('end of file')
                     break
                 if unit == 'keV':
                     energy = float(energy.replace(",", "."))
@@ -175,7 +175,6 @@ class Alpha_N_calc:
         input_file = os.path.join(shared_folder, "SR.IN")
         Alpha_N_calc.SR_file_write_IN(input_file,mat,E_min=E_min,E_max=E_max,state=0)
     
-        print("Waiting for SRModule to produce output...")
         output_file = os.path.join(shared_folder, mat.name)
         if new_file:
             try:
@@ -185,6 +184,8 @@ class Alpha_N_calc:
                 
         while not os.path.exists(output_file):
             time.sleep(1)  # check every second
+            if new_file:
+                print("Waiting for SRModule to produce output...")
     
         energies,stopping_powers = Alpha_N_calc.SR_file_read(mat.name,shared_folder)
         energies=np.array(energies)
