@@ -181,10 +181,11 @@ class Alpha_N_calc:
                 os.remove(output_file)
             except:
                 print('no file to remove')
-                
+        n=0        
         while not os.path.exists(output_file):
             time.sleep(1)  # check every second
-            if new_file:
+            n+=1
+            if new_file or n>5:
                 print("Waiting for SRModule to produce output...")
     
         energies,stopping_powers = Alpha_N_calc.SR_file_read(mat.name,shared_folder)

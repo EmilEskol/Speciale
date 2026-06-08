@@ -221,5 +221,9 @@ class PrettyPlot:
         ax_main.set_ylabel(ylabel)
         ax_main.set_title(title)
 
-    def savefig(filename):
-        plt.savefig(f'/root/SR_Module/Plots/{filename}.svg', format="svg",bbox_inches='tight')
+    def savefig(filename,figure=None):
+        if figure is None:
+            plt.savefig(f'/root/SR_Module/Plots/{filename}.svg', format="svg",bbox_inches='tight')
+        else:
+            figure.savefig(f'/root/SR_Module/Plots/{filename}.svg',
+                           format="svg",bbox_inches='tight')
