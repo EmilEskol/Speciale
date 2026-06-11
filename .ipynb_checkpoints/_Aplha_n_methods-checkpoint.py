@@ -292,18 +292,41 @@ class Alpha_N_calc:
             dec = None
         return dec
 
+    def print_deacy_data(nuclide_name):
+        '''
+        print alpha decay data from nuclide name format U234
+        ----------
+        nuclide_name: str
+            name of the nuclide in the form of U234
+        Returns
+        -------
+        None
+        '''
+        dec = get_decay_data(nuclide_name)
+        mass = openmc.data.atomic_mass(nuclide_name)/6.022136651E+26 #Convertion from unit to kg
+        print(dec.modes)
+        print('Halflife (s)\t',dec.half_life)
+        print(f'Halflife (y)\t{dec.half_life.nominal_value/(3600*24*365.25):.3g}')
+        print('Decay_constant\t',dec.decay_constant)
+        #print('Calculated decay constant (s) ',np.log(2)/dec.half_life.nominal_value)
+        
+        print('\nEnergy \t\t\tIntensity\t\t decay')
+        total = 0
+        for item in dec.spectra['alpha']['discrete']:
+            print(item['energy'],'\t',item['intensity'],'\t',item['intensity']*dec.decay_constant/mass)
+            total+=item['intensity'].nominal_value
+        print(f'Total intensity {total:.3g}')
+
     @staticmethod
-    def alpha_decay_values_from_material(material,show_discarded=False):
+    def alpha_decay_values_from_material(material,material_volume=1000,show_discarded=False):
         '''
         Method for finding aplha source for a given material. Using volume of the openmc.Material
         Parameters
         ----------
         material: openmc.Material
             material to analyze
-        geom: openmc.Geometry
-            geometry for the given problem used to calculated the amount of atoms
-        cell_name: str
-            name of the openmc.Geometry cell the material is in
+        material_volume:float
+            volume of material in cm^3 
         show_discarded: boolean
             enables the printing of every material discarded do to no alha emission
         
@@ -324,7 +347,8 @@ class Alpha_N_calc:
     
         #Getting the volume from the material
         try:
-            material_cell.volume = material.volume
+            print('1e6')
+            material_cell.volume = fuel_volume
         except Exception as e:
             print(f'Error no material volume defined {e}')
         
