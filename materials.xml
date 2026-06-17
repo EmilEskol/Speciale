@@ -32,53 +32,53 @@
   </material>
   <material depletable="true" id="13" name="Fuel_A" volume="707921.1647499999">
     <density units="g/cm3" value="2.314667957543"/>
-    <nuclide ao="2.5895190000006466e-05" name="Li6"/>
-    <nuclide ao="0.34990910481000004" name="Li7"/>
-    <nuclide ao="0.558439" name="F19"/>
-    <nuclide ao="0.07899999999999999" name="Be9"/>
-    <nuclide ao="0.005145" name="Zr90"/>
-    <nuclide ao="0.0011220000000000004" name="Zr91"/>
-    <nuclide ao="0.0017150000000000006" name="Zr92"/>
-    <nuclide ao="0.0017380000000000008" name="Zr94"/>
-    <nuclide ao="0.0002800000000000001" name="Zr96"/>
-    <nuclide ao="4.0000000000000025e-07" name="Th230"/>
-    <nuclide ao="0.0019996000000000015" name="Th232"/>
-    <nuclide ao="6.485484884668586e-06" name="U234"/>
-    <nuclide ao="0.0005812029061666951" name="U235"/>
-    <nuclide ao="6.430406935507644e-06" name="U236"/>
-    <nuclide ao="3.188120201312881e-05" name="U238"/>
+    <nuclide ao="2.134462308203254e-05" name="Li6"/>
+    <nuclide ao="0.28841950783674514" name="Li7"/>
+    <nuclide ao="0.5878651000045336" name="F19"/>
+    <nuclide ao="0.09767597129892558" name="Be9"/>
+    <nuclide ao="0.010602170302383378" name="Zr90"/>
+    <nuclide ao="0.002312076788974568" name="Zr91"/>
+    <nuclide ao="0.0035340567674611266" name="Zr92"/>
+    <nuclide ao="0.0035814522809606056" name="Zr94"/>
+    <nuclide ao="0.0005769888599936533" name="Zr96"/>
+    <nuclide ao="8.242697999909335e-07" name="Th230"/>
+    <nuclide ao="0.004120524730154677" name="Th232"/>
+    <nuclide ao="1.3364473321824988e-05" name="U234"/>
+    <nuclide ao="0.001197670008050427" name="U235"/>
+    <nuclide ao="1.3250975596477986e-05" name="U236"/>
+    <nuclide ao="6.569678001708054e-05" name="U238"/>
   </material>
   <material depletable="true" id="14" name="Fuel_B" volume="707921.1647499999">
     <density units="g/cm3" value="2.1544833238030003"/>
-    <nuclide ao="2.4720070000006172e-05" name="Li6"/>
-    <nuclide ao="0.33403027992999995" name="Li7"/>
-    <nuclide ao="0.5609003333333333" name="F19"/>
-    <nuclide ao="0.09666666666666665" name="Be9"/>
-    <nuclide ao="0.004116" name="Zr90"/>
-    <nuclide ao="0.0008976" name="Zr91"/>
-    <nuclide ao="0.0013720000000000002" name="Zr92"/>
-    <nuclide ao="0.0013904000000000002" name="Zr94"/>
-    <nuclide ao="0.000224" name="Zr96"/>
-    <nuclide ao="4.26811609720757e-06" name="U234"/>
-    <nuclide ao="0.000350617015796797" name="U235"/>
-    <nuclide ao="4.231869141799389e-06" name="U236"/>
-    <nuclide ao="1.8882998964195927e-05" name="U238"/>
+    <nuclide ao="2.0466429603386373e-05" name="Li6"/>
+    <nuclide ao="0.27655290658906234" name="Li7"/>
+    <nuclide ao="0.5860361721592768" name="F19"/>
+    <nuclide ao="0.12004951007380975" name="Be9"/>
+    <nuclide ao="0.008519375576962087" name="Zr90"/>
+    <nuclide ao="0.0018578696593491667" name="Zr91"/>
+    <nuclide ao="0.002839791858987363" name="Zr92"/>
+    <nuclide ao="0.0028778765311487093" name="Zr94"/>
+    <nuclide ao="0.0004636394871816102" name="Zr96"/>
+    <nuclide ao="8.834228386343273e-06" name="U234"/>
+    <nuclide ao="0.0007257138098266673" name="U235"/>
+    <nuclide ao="8.759203744301561e-06" name="U236"/>
+    <nuclide ao="3.908439266165481e-05" name="U238"/>
   </material>
   <material depletable="true" id="15" name="Fuel_C" volume="707921.1647499999">
     <density units="g/cm3" value="2.2858347234698"/>
-    <nuclide ao="2.4038530000006006e-05" name="Li6"/>
-    <nuclide ao="0.32482096147" name="Li7"/>
-    <nuclide ao="0.5661596666666666" name="F19"/>
-    <nuclide ao="0.09733333333333333" name="Be9"/>
-    <nuclide ao="0.005144999999999999" name="Zr90"/>
-    <nuclide ao="0.0011220000000000002" name="Zr91"/>
-    <nuclide ao="0.0017150000000000004" name="Zr92"/>
-    <nuclide ao="0.0017380000000000006" name="Zr94"/>
-    <nuclide ao="0.0002800000000000001" name="Zr96"/>
-    <nuclide ao="4.529502936745817e-06" name="U234"/>
-    <nuclide ao="0.0005953430568633991" name="U235"/>
-    <nuclide ao="4.491036154861215e-06" name="U236"/>
-    <nuclide ao="0.001057636404044994" name="U238"/>
+    <nuclide ao="1.948861945819785e-05" name="Li6"/>
+    <nuclide ao="0.2633402337885551" name="Li7"/>
+    <nuclide ao="0.594637869740933" name="F19"/>
+    <nuclide ao="0.11836574203564754" name="Be9"/>
+    <nuclide ao="0.010427940800914495" name="Zr90"/>
+    <nuclide ao="0.002274081550753365" name="Zr91"/>
+    <nuclide ao="0.0034759802669714988" name="Zr92"/>
+    <nuclide ao="0.003522596911951292" name="Zr94"/>
+    <nuclide ao="0.0005675069823626938" name="Zr96"/>
+    <nuclide ao="9.180444797269919e-06" name="U234"/>
+    <nuclide ao="0.0012066476488254612" name="U235"/>
+    <nuclide ao="9.102479914025151e-06" name="U236"/>
+    <nuclide ao="0.002143628728916089" name="U238"/>
   </material>
   <material id="20" name="Air">
     <density units="g/cm3" value="24.351443745687003"/>

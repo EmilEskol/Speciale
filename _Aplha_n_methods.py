@@ -346,11 +346,8 @@ class Alpha_N_calc:
         material_cell.fill = material
     
         #Getting the volume from the material
-        try:
-            print('1e6')
-            material_cell.volume = fuel_volume
-        except Exception as e:
-            print(f'Error no material volume defined {e}')
+        material_cell.volume = material_volume
+
         
         
         for nuclide_name, nuclide_amount_percent,_ in material.nuclides:
