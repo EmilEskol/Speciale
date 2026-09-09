@@ -4,6 +4,38 @@ import re
 import time
 import numpy as np
 
+from scipy.interpolate import make_interp_spline
+from openmc.data.endf import Evaluation, get_head_record, get_tab1_record
+from io import StringIO
+
+from concurrent.futures import ProcessPoolExecutor
+from itertools import repeat
+
+def init_worker(indexs, alpha_S, E_as, integrents):
+        global G_indexs, G_alpha_S, G_E_as, G_integrents
+        G_indexs = indexs
+        G_alpha_S = alpha_S
+        G_E_as = E_as
+        G_integrents = integrents
+
+
+class Nuclide_integrent:
+    def __init__(self, E_as, nuclide_name,spline):
+        self.nuclide_name = nuclide_name
+
+        self.E_n_maxs = [Alpha_N_calc.neutron_energy_alpha_n(E_a, 0, nuclide_name) for E_a in E_as]
+        self.E_n_mins = [min(
+            Alpha_N_calc.neutron_energy_alpha_n(E_a, np.pi / 2, nuclide_name),
+            Alpha_N_calc.neutron_energy_alpha_n(E_a, np.pi, nuclide_name),
+        ) for E_a in E_as]
+        self.values = [spline(E_a) / (E_n_max - E_n_min) for E_a,E_n_max,E_n_min in 
+                      zip(E_as,self.E_n_maxs,self.E_n_mins)]
+    def __call__(self, E_n,i):
+        if self.E_n_mins[i] < E_n < self.E_n_maxs[i]:
+            return self.values[i]
+        else:
+            return 0  
+            
 class Alpha_N_calc:
     '''Class containning methods used in alpha_N claculations'''
     
@@ -171,6 +203,8 @@ class Alpha_N_calc:
         '''
         E_min=int(E_min/1000)
         E_max=int(E_max/1000)
+        if E_min<10:
+            E_min=10
         
         input_file = os.path.join(shared_folder, "SR.IN")
         Alpha_N_calc.SR_file_write_IN(input_file,mat,E_min=E_min,E_max=E_max,state=0)
@@ -441,3 +475,264 @@ class Alpha_N_calc:
                 #print(activity,energy_std_dev,energy)
                 energy_spectra += Alpha_N_calc.gaussian(activity,energy_std_dev,energy,x)
         return energy_spectra,x
+    
+    
+    @staticmethod
+    def neutron_spectra_from_material(mat,E_min=0,E_max=5e6,nr_points=10000,nr_energies=500,printing=True,new_file=True):
+        '''
+        Method for calculating a continuous neutron spectrum from the
+        alpha decay spectrum of a material and its (alpha,n) reaction
+        cross sections.
+    
+        Parameters
+        ----------
+        mat : openmc.Material
+            Material for which the neutron spectrum is calculated.
+    
+        E_min : float, optional
+            Minimum alpha/neutron energy considered, in eV.
+            Default is 0 eV.
+    
+        E_max : float, optional
+            Maximum alpha/neutron energy considered, in eV.
+            Default is 6e6 eV.
+    
+        nr_points : int, optional
+            Number of energy points used for calculating and interpolating
+            the stopping powers and (alpha,n) reaction cross sections.
+            Default is 1000.
+    
+        nr_energies : int, optional
+            Number of neutron-energy points at which the final neutron
+            spectrum is evaluated.
+            Default is 100.
+    
+        printing : bool, optional
+            If True, print the time required for the setup calculation.
+            Default is True.
+    
+        Returns
+        -------
+        neutron_spectra : np.ndarray
+            Calculated neutron spectrum evaluated at each energy in
+            ``neutron_energies``. The spectrum contains the contribution
+            from (alpha,n) reactions in all nuclides present in ``mat``.
+    
+        neutron_energies : np.ndarray
+            Neutron-energy grid corresponding to ``neutron_spectra``,
+            in eV.
+    
+        Notes
+        -----
+        The calculation uses the alpha decay spectrum of the material,
+        the stopping power of alpha particles in the material, and the
+        (alpha,n) reaction cross sections of the constituent nuclides.
+    
+        The reaction channels are grouped according to the number of
+        neutrons produced:
+    
+            MT = 4, 22, 23, 28, 29 : one neutron
+            MT = 11, 16, 24, 30    : two neutrons
+            MT = 17, 25            : three neutrons
+    
+        The calculation is parallelized over the neutron-energy grid
+        using ``ProcessPoolExecutor``.
+        '''
+        #Getting data
+        time_setup_start = time.perf_counter()
+        energies = np.linspace(E_min,E_max,nr_points)
+        
+        mat_dens = mat.get_nuclide_atom_densities() #returns nuclide densities in atom/b-cm
+    
+        #Stopping power splines
+        stopping_power_spline = Alpha_N_calc.get_stopping_power_spline(mat,E_min=E_min,E_max=E_max,new_file=new_file)
+        stopping_powers= Alpha_N_calc.get_spline_data(stopping_power_spline,energies, extrapolate=True)
+        stopping_powers = np.array(stopping_powers)*1e8 #Converting from eV/Å to eV/cm
+
+        #Alpha spectrum
+        alpha_decays, mass,nuclide_amount = Alpha_N_calc.alpha_decay_values_from_material(mat)
+        alpha_spectra = []
+        alpha_energies = []
+        for name, a_activities, a_energies,energy_devs,_  in alpha_decays:
+            alpha_spectra.extend(a_activities)
+            alpha_energies.extend(a_energies)
+        #sorting energies
+        alpha_spectra = [a/mass for _,a in sorted(zip(alpha_energies,alpha_spectra))]
+        alpha_energies = sorted(alpha_energies)
+        
+        integrent_splines = []
+        
+        for nuc in mat.nuclides:
+            #Getting crosssections
+            cross_splines,tab = Alpha_N_calc.get_crossection_from_isotope(nuc.name,k=5,x_max=E_max,plot=False)
+            total_crosssection = np.zeros(nr_points)
+            for mt in cross_splines:
+                spline_data = Alpha_N_calc.get_spline_data(cross_splines[mt],energies, extrapolate=False,non_negative=True)
+                
+                if mt in [4,22,23,28,29]: #(a,n+anything)
+                    total_crosssection += spline_data
+                    
+                elif mt in [11,16,24,30]: #(a,2n+anything)
+                    total_crosssection += 2*spline_data
+                    
+                elif mt in [17,25]: #(a,3n+anything) for up to mt=30
+                    total_crosssection += 3*spline_data
+                else:
+                    print(f'reaction with mt={mt} is not know')
+    
+            #Making integrent
+            target_density = mat_dens[nuc.name] #atom/b-cm 
+            
+            #total_crosssection is in barns
+            #stopping powers is in eV/cm
+            
+            integrent_splines.append(
+                make_interp_spline(energies,target_density*total_crosssection/stopping_powers,k=5))
+
+        #Setting energy array with all alpha energies and energies in between up
+        energies_with_alpha = np.unique(np.concatenate((energies,alpha_energies)))
+        indexs = [np.searchsorted(energies_with_alpha, E_a, side="right") for E_a in alpha_energies]
+        
+        #Making kernels and integrent 
+        numeric_integrents = [Nuclide_integrent(energies_with_alpha,nuc.name,spline) 
+                              for nuc,spline in zip(mat.nuclides,integrent_splines)]
+        
+    
+        time_setup = time.perf_counter() - time_setup_start
+        if printing:
+            print(f'setup done in {time_setup} s')
+    
+        #Neutron energies
+        neutrons_total = 0
+        neutron_spectra = []
+        neutron_energies =  np.linspace(E_min,E_max,nr_energies)
+
+        init_worker(
+            indexs,
+            alpha_spectra,
+            energies_with_alpha,
+            numeric_integrents
+        )
+    
+        with ProcessPoolExecutor(initializer=init_worker,
+                                 initargs=(indexs, alpha_spectra, energies_with_alpha, numeric_integrents)) as executor:
+            neutron_spectra = list(executor.map(Alpha_N_calc.compute_spectrum, neutron_energies))     
+        return neutron_spectra,neutron_energies,neutrons_total    
+        
+    @staticmethod
+    def compute_spectrum(E_n):#,indexs,alpha_spectra,energies_with_alpha,integrents):
+        neutrons_total = 0
+        values = [np.sum([integrent(E_n,i) for integrent in G_integrents]) for i in range(len(G_E_as))]
+        
+        for i,alpha in zip(G_indexs,G_alpha_S): #over all different alpha energies
+            neutrons_total +=  alpha*np.trapezoid(values[:i], G_E_as[:i]) #neutrons
+        return neutrons_total
+    @staticmethod
+    def neutron_energy_alpha_n(E_a,theta,nuclide_name):
+        m_a = 4.001506179127#openmc.data.atomic_mass('He4') #alpha mass
+        m_n = 1.008664915904 #neutron mass
+        m_T = openmc.data.atomic_mass(nuclide_name)#target nuclide
+        
+        Z, A, m =openmc.data.zam(nuclide_name)
+        new_Z = Z+2
+        m_R = openmc.data.atomic_mass(f'{openmc.data.ATOMIC_SYMBOL[new_Z]}{A+3}') #residual recoil nucleus
+        
+        Q_i =m_a+m_T-m_n-m_R  #From energy/mass conservation in m_T+m_a = m_n-m_R
+        
+        term0 = m_a*m_n*E_a*np.pow(np.cos(theta),2)/np.pow(m_n+m_R,2)
+        term1 = (m_R*Q_i+(m_R-m_a)*E_a)/(m_a+m_R)
+        term2 = 2*np.cos(theta)/(m_n+m_R)*np.sqrt(m_a*m_n*E_a*(m_R*Q_i+(m_R-m_a)*E_a)/(m_n+m_R))
+        
+        return term0 + term1 + term2
+
+
+        
+    @staticmethod
+    def get_stopping_power_spline(mat,k=5,E_min=1e4,E_max=1e7,new_file=True):
+        energies,stopping_powers = Alpha_N_calc.SR_file_write_and_read(mat,E_min=E_min,E_max=E_max,new_file=new_file)
+        while k>0:    
+            try:    
+                spline = make_interp_spline(energies,stopping_powers,k=k,bc_type='periodic')
+                break
+            except:
+                    k-=1
+            if k==1:
+                spline = make_interp_spline(energies,stopping_powers,k=k)
+        return spline
+        
+    @staticmethod
+    def get_spline_data(spline,xs,extrapolate = False,non_negative=False):
+        spline_with_nan = spline(xs, extrapolate=extrapolate)
+        spline_data = np.nan_to_num(spline_with_nan,nan=0.00)
+        
+        if non_negative:
+            spline_data = np.clip(spline_data,0,None) #sets all negative values to zero
+    
+        return spline_data
+
+    @staticmethod
+    def get_crossection_from_isotope(nuc_name,k=1,xs=None, x_min=0, x_max=8e6, plot=True,print_no_data=False):
+        splines={}
+        tabs={}
+        failed_mts = []
+        if plot:
+            fig,ax = plt.subplots()
+            ax.set_title(rf'{nuc_name} cross section for ($\alpha$,anything)')
+            ax.set_xlabel('Energy [eV]')
+            ax.set_ylabel(r'cross section [b]')
+            
+        for mt in np.array([4,16,17,22,23,24,25,28,29]):
+            mt= int(mt)
+            spline, tab ,xs = Alpha_N_calc.get_crosssection_spline(nuc_name,mt,k,xs,x_min,x_max)
+                
+            if spline != None:
+                splines[mt]=spline
+                tabs[mt]=tab
+                if plot:
+                    ax.plot(tab.x,tab.y,'x-',label=f'mt={mt}')
+                    ax.plot(xs,spline(xs))
+            else:
+                failed_mts.append(mt)
+        if len(failed_mts)>0 and print_no_data:  
+            print(f'In {nuc_name} following mts had no data',failed_mts)
+        if plot:
+            ax.legend()
+        return splines,tabs
+    @staticmethod
+    def get_crosssection_spline(nuc_name, mt,k=1, xs=None, x_min=2e6, x_max=8e6):
+        #Getting data
+        symbol,Z,A = Alpha_N_calc.isolate_atomic_symbol(nuc_name)
+        ev = Evaluation(f"/root/TENDL-a/a-{symbol}{A}.tendl")
+        
+        mf=3 #Reaction cross sections
+        try:
+            endf_output = StringIO(ev.section[mf,mt])
+        except:
+            #print(f'mt={mt} does not exist')
+            return None,None, None
+        head = get_head_record(endf_output)
+        params, tab = get_tab1_record(endf_output)
+        #print('energy',tab.x)   # energies in eV
+        #print('cross section',tab.y)   # cross sections in barns
+    
+        #Removing data under x_min, over x_max and duplicates 
+        mask = (tab.x >= x_min) & (tab.x <= x_max)
+        tab.x = tab.x[mask]
+        tab.y = tab.y[mask]
+        if len(tab.x) ==0:
+            #print(f'no data between {x_min} eV and {x_max} eV')
+            return None,None,None
+        tab.x, idx = np.unique(tab.x, return_index=True)
+        tab.y = tab.y[idx]
+    
+        if xs is None:
+            xs = np.linspace(min(tab.x),max(tab.x),int(1e4))
+        while k>0:    
+            try:    
+                spline = make_interp_spline(tab.x,tab.y,k=k)
+                break
+            except:
+                k-=1
+                if k==1:
+                    spline = make_interp_spline(tab.x,tab.y,k=k)
+        return spline, tab, xs
