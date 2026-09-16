@@ -1,4 +1,6 @@
 import openmc
+import numpy as np
+
 class Geometry_helper:
     '''Class with useful openmc methods'''
     @staticmethod
@@ -43,11 +45,11 @@ class Geometry_helper:
     
         settings = openmc.Settings()
         settings.run_mode = 'eigenvalue'
-        point = openmc.stats.Point()
+        #point = openmc.stats.Point()
         src = source = openmc.IndependentSource(
-        space=openmc.stats.Point((0, 0, 
-                                  inner_fuel_radius+(outer_fuel_radius-inner_fuel_radius)/2)),
-                                energy=openmc.stats.Discrete([14e6], [1.0]))
+                                space=openmc.stats.Point((0, 0, 
+                                (inner_fuel_radius+outer_fuel_radius)/2)),
+                                energy=openmc.stats.Discrete(np.linspace(1e6,14e6,100), np.ones(100) / 100))
     
         settings.source = src
         settings.batches = 100
@@ -56,7 +58,7 @@ class Geometry_helper:
         return settings
     @staticmethod
     def set_geom_fuel_shell(sphere_ir,sphere_or,water_or,with_blanket=False,blanket_or=0,inner_moderator_height=-1
-                            , materials= None,fuel_name="Fuel CA_1"):
+                            , materials= None,fuel_name=None):
         fuel_material, heavy_water, water, blanket_CA, air, mat = Geometry_helper.set_mat(fuel_name, materials)
         eps=0.0001 # constant to make sure geomitries dont overlap
         

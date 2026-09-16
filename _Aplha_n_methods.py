@@ -92,6 +92,18 @@ class Alpha_N_calc:
         None
         '''
         empty_string = ''
+        #Sorting Z<93 and make sure only 100 isotobes is given to SRIM
+        threshold = 1e-50
+        nuclides = []
+        while len(nuclides) > 100 or len(nuclides) == 0:
+            nuclides = []
+            threshold *= 10
+            for nuc in mat.nuclides:
+                Z, A, m = openmc.data.zam(nuc[0])
+                if nuc[1] > threshold and Z < 93:
+                    nuclides.append(nuc[0])
+        
+        n=0
         with open(input_file, "w",newline="\n") as f:
             f.write('---Stopping/Range Input Data (Number-format: Period = Decimal Point)\r\n')
             f.write('---Output File Name\r\n')
@@ -101,7 +113,7 @@ class Alpha_N_calc:
             f.write('---Target Data: (Solid=0,Gas=1), Density(g/cm3), Compound Corr.\r\n')
             f.write(f'{state}\t {mat.density}\t 0\r\n')  # Note single space after first column
             f.write('---Number of Target Elements\r\n')
-            f.write(f'{len(mat.nuclides)}\r\n')
+            f.write(f'{len(nuclides)}\r\n')
             f.write('---Target Elements: (Z), Target name, Stoich, Target Mass(u)\r\n')
             
             for nuc in mat.nuclides:
@@ -114,8 +126,10 @@ class Alpha_N_calc:
                 # - element name padded to 15 characters
                 # - tab between name and stoich
                 # - spaces between stoich and mass number
-                f.write(f'{Z:<3}  "{Alpha_N_calc.symbol_to_element_name[symbol]}"  {empty_string:<8}\t {Stoich:<25}  {A}\r\n')
-            
+                if Stoich > threshold and Z < 93:
+                    n += 1 
+                    f.write(f'{Z:<3}  "{Alpha_N_calc.symbol_to_element_name[symbol]}"  {empty_string:<8}\t {Stoich:<25}  {A}\r\n')
+            print(f'len target elements {len(nuclides)}, #elements {n}')
             f.write('---Output Stopping Units (1-8)\r\n')
             f.write('1\r\n')  # Units eV / Angstrom
             f.write('---Ion Energy : E-Min(keV), E-Max(keV)\r\n')
@@ -219,11 +233,12 @@ class Alpha_N_calc:
         while not os.path.exists(output_file):
             time.sleep(1)  # check every second
             n+=1
-            if new_file or n>5:
+            if new_file or n>5 and n<7:
                 print("Waiting for SRModule to produce output...")
     
         energies,stopping_powers = Alpha_N_calc.SR_file_read(mat.name,shared_folder)
         energies=np.array(energies)
+        print("SRModule done")
         return energies,stopping_powers
     
     @staticmethod
@@ -593,6 +608,7 @@ class Alpha_N_calc:
         energies_with_alpha = np.unique(np.concatenate((energies,alpha_energies)))
         indexs = [np.searchsorted(energies_with_alpha, E_a, side="right") for E_a in alpha_energies]
         
+        print('Making kernels and integrent...')
         #Making kernels and integrent 
         numeric_integrents = [Nuclide_integrent(energies_with_alpha,nuc.name,spline) 
                               for nuc,spline in zip(mat.nuclides,integrent_splines)]
@@ -603,7 +619,7 @@ class Alpha_N_calc:
             print(f'setup done in {time_setup} s')
     
         #Neutron energies
-        neutrons_total = 0
+        #neutrons_total = 0
         neutron_spectra = []
         neutron_energies =  np.linspace(E_min,E_max,nr_energies)
 
@@ -616,7 +632,8 @@ class Alpha_N_calc:
     
         with ProcessPoolExecutor(initializer=init_worker,
                                  initargs=(indexs, alpha_spectra, energies_with_alpha, numeric_integrents)) as executor:
-            neutron_spectra = list(executor.map(Alpha_N_calc.compute_spectrum, neutron_energies))     
+            neutron_spectra = list(executor.map(Alpha_N_calc.compute_spectrum, neutron_energies)) 
+        neutrons_total = np.trapezoid(neutron_spectra,neutron_energies)
         return neutron_spectra,neutron_energies,neutrons_total    
         
     @staticmethod
@@ -702,14 +719,16 @@ class Alpha_N_calc:
     def get_crosssection_spline(nuc_name, mt,k=1, xs=None, x_min=2e6, x_max=8e6):
         #Getting data
         symbol,Z,A = Alpha_N_calc.isolate_atomic_symbol(nuc_name)
-        ev = Evaluation(f"/root/TENDL-a/a-{symbol}{A}.tendl")
-        
+        if int(A) > 7:
+            ev = Evaluation(f"/root/TENDL-a/a-{symbol}{A}.tendl")
+        else:
+            return None, None, None
         mf=3 #Reaction cross sections
         try:
             endf_output = StringIO(ev.section[mf,mt])
         except:
             #print(f'mt={mt} does not exist')
-            return None,None, None
+            return None, None, None
         head = get_head_record(endf_output)
         params, tab = get_tab1_record(endf_output)
         #print('energy',tab.x)   # energies in eV
