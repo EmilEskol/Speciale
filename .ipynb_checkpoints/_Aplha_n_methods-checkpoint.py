@@ -95,14 +95,29 @@ class Alpha_N_calc:
         #Sorting Z<93 and make sure only 100 isotobes is given to SRIM
         threshold = 1e-50
         nuclides = []
-        while len(nuclides) > 100 or len(nuclides) == 0:
+        n = 0
+        while len(nuclides) > 100 or len(nuclides) == 0 or len(nuclides) < 100:
+            n += 1
+            if len(nuclides) > 120:
+                threshold *= 100
+            elif len(nuclides) > 105:
+                threshold *= 2
+            elif len(nuclides) > 100:
+                threshold *= 1.5
+            else:
+                threshold /= 1.05
             nuclides = []
-            threshold *= 10
             for nuc in mat.nuclides:
                 Z, A, m = openmc.data.zam(nuc[0])
                 if nuc[1] > threshold and Z < 93:
                     nuclides.append(nuc[0])
-        
+            if len(nuclides) == 100 :
+                break
+            elif n > 100:
+                print(f"SRIM perfekt threshold was not found using {len(nuclides)} isotopes")
+                break
+                
+        print(f"Writing SRIM file after {n} threshold tries")
         n=0
         with open(input_file, "w",newline="\n") as f:
             f.write('---Stopping/Range Input Data (Number-format: Period = Decimal Point)\r\n')
@@ -128,7 +143,7 @@ class Alpha_N_calc:
                 # - spaces between stoich and mass number
                 if Stoich > threshold and Z < 93:
                     n += 1 
-                    f.write(f'{Z:<3}  "{Alpha_N_calc.symbol_to_element_name[symbol]}"  {empty_string:<8}\t {Stoich:<25}  {A}\r\n')
+                    f.write(f'{Z:<3}  "{Alpha_N_calc.symbol_to_element_name[symbol]:<14}"  {empty_string:<8}\t {Stoich:<25}  {A}\r\n')
             print(f'len target elements {len(nuclides)}, #elements {n}')
             f.write('---Output Stopping Units (1-8)\r\n')
             f.write('1\r\n')  # Units eV / Angstrom
@@ -229,16 +244,20 @@ class Alpha_N_calc:
                 os.remove(output_file)
             except:
                 print('no file to remove')
-        n=0        
+        
+        n=0
         while not os.path.exists(output_file):
             time.sleep(1)  # check every second
             n+=1
-            if new_file or n>5 and n<7:
+            if new_file and n>5 and n<8:
                 print("Waiting for SRModule to produce output...")
-    
+        
+        #Waiting for SRIM to complete
+        time.sleep(3)
+        
         energies,stopping_powers = Alpha_N_calc.SR_file_read(mat.name,shared_folder)
         energies=np.array(energies)
-        print("SRModule done")
+        print(f"SRModule done, length of data: {len(energies)} and {len(stopping_powers)}")
         return energies,stopping_powers
     
     @staticmethod
@@ -576,7 +595,8 @@ class Alpha_N_calc:
         alpha_energies = sorted(alpha_energies)
         
         integrent_splines = []
-        
+
+        print("Getting cross sections...")
         for nuc in mat.nuclides:
             #Getting crosssections
             cross_splines,tab = Alpha_N_calc.get_crossection_from_isotope(nuc.name,k=5,x_max=E_max,plot=False)
@@ -667,15 +687,21 @@ class Alpha_N_calc:
     @staticmethod
     def get_stopping_power_spline(mat,k=5,E_min=1e4,E_max=1e7,new_file=True):
         energies,stopping_powers = Alpha_N_calc.SR_file_write_and_read(mat,E_min=E_min,E_max=E_max,new_file=new_file)
-        while k>0:    
-            try:    
-                spline = make_interp_spline(energies,stopping_powers,k=k,bc_type='periodic')
-                break
-            except:
-                    k-=1
-            if k==1:
-                spline = make_interp_spline(energies,stopping_powers,k=k)
-        return spline
+        if len(energies)>5 and len(stopping_powers)>5:
+            while k>0:    
+                try:    
+                    spline = make_interp_spline(energies,stopping_powers,k=k,bc_type='periodic')
+                    break
+                except:
+                        k-=1
+                if k==1:
+                    spline = make_interp_spline(energies,stopping_powers,k=k)
+            return spline
+        else:
+            print('An error has orcurred in SRIM')
+            print('Energies: ',energies)
+            print('Stopping_powers: ',stopping_powers)
+            return None
         
     @staticmethod
     def get_spline_data(spline,xs,extrapolate = False,non_negative=False):
@@ -697,11 +723,19 @@ class Alpha_N_calc:
             ax.set_title(rf'{nuc_name} cross section for ($\alpha$,anything)')
             ax.set_xlabel('Energy [eV]')
             ax.set_ylabel(r'cross section [b]')
-            
+
+        #Getting data
+        symbol,Z,A = Alpha_N_calc.isolate_atomic_symbol(nuc_name)
+        if int(A) not in [1,2,3,4,5,8]:
+            ev = Evaluation(f"/root/TENDL-a/a-{symbol}{A}.tendl")
+        else:
+            #print(f'isotope with A={A} failed')
+            return splines,tabs
+        
         for mt in np.array([4,16,17,22,23,24,25,28,29]):
             mt= int(mt)
-            spline, tab ,xs = Alpha_N_calc.get_crosssection_spline(nuc_name,mt,k,xs,x_min,x_max)
-                
+            spline, tab ,xs = Alpha_N_calc.get_crosssection_spline(nuc_name,ev,mt,k,xs,x_min,x_max)
+            
             if spline != None:
                 splines[mt]=spline
                 tabs[mt]=tab
@@ -716,13 +750,8 @@ class Alpha_N_calc:
             ax.legend()
         return splines,tabs
     @staticmethod
-    def get_crosssection_spline(nuc_name, mt,k=1, xs=None, x_min=2e6, x_max=8e6):
-        #Getting data
-        symbol,Z,A = Alpha_N_calc.isolate_atomic_symbol(nuc_name)
-        if int(A) > 7:
-            ev = Evaluation(f"/root/TENDL-a/a-{symbol}{A}.tendl")
-        else:
-            return None, None, None
+    def get_crosssection_spline(nuc_name,ev, mt,k=1, xs=None, x_min=2e6, x_max=8e6):
+        
         mf=3 #Reaction cross sections
         try:
             endf_output = StringIO(ev.section[mf,mt])
