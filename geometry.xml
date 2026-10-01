@@ -5,11 +5,11 @@
   <cell id="3" material="10" name="blanket" region="6 -7" universe="1"/>
   <cell id="4" material="void" region="7 -8" universe="1"/>
   <cell id="5" material="5" name="air" region="-4 3" universe="1"/>
-  <surface coeffs="0.0 0.0 0.0 65" id="1" name="fuel_outer" type="sphere"/>
-  <surface coeffs="0.0 0.0 0.0 55" id="2" name="fuel_inner" type="sphere"/>
-  <surface coeffs="0 1 0 40" id="3" type="plane"/>
-  <surface coeffs="0.0 0.0 0.0 55" id="4" type="sphere"/>
-  <surface coeffs="0.0 0.0 0.0 65" id="5" type="sphere"/>
+  <surface coeffs="0.0 0.0 0.0 60" id="1" name="fuel_outer" type="sphere"/>
+  <surface coeffs="0.0 0.0 0.0 50" id="2" name="fuel_inner" type="sphere"/>
+  <surface coeffs="0 1 0 30" id="3" type="plane"/>
+  <surface coeffs="0.0 0.0 0.0 50" id="4" type="sphere"/>
+  <surface coeffs="0.0 0.0 0.0 60" id="5" type="sphere"/>
   <surface coeffs="0.0 0.0 0.0 80" id="6" name="blanket_inner" type="sphere"/>
   <surface coeffs="0.0 0.0 0.0 100" id="7" name="blanket_outer" type="sphere"/>
   <surface boundary="reflective" coeffs="0.0 0.0 0.0 100.0001" id="8" type="sphere"/>

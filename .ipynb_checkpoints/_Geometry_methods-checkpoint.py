@@ -162,9 +162,9 @@ class Geometry_helper:
                                 energy=openmc.stats.Discrete(np.linspace(1e6,14e6,100), np.ones(100) / 100))
     
         settings.source = src
-        settings.batches = 100
+        settings.batches = 50
         settings.inactive = 10
-        settings.particles = 10000
+        settings.particles = 2000
         return settings
     @staticmethod
     def set_geom_fuel_shell(sphere_ir,sphere_or,water_or,with_blanket=False,blanket_or=0,inner_moderator_height=-1

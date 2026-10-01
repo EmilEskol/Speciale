@@ -1,12 +1,12 @@
 <?xml version='1.0' encoding='utf-8'?>
 <materials>
-  <material id="12" name="d2o" temperature="299.95">
+  <material id="1" name="d2o" temperature="299.95">
     <density units="g/cm3" value="1.104"/>
     <nuclide ao="2.0" name="H2"/>
     <nuclide ao="1.0" name="O16"/>
     <sab name="c_D_in_D2O"/>
   </material>
-  <material id="16" name="Air">
+  <material id="5" name="Air">
     <density units="g/cm3" value="24.351443745687003"/>
     <nuclide ao="0.7782388307" name="N14"/>
     <nuclide ao="0.0028611693000000003" name="N15"/>
@@ -16,7 +16,7 @@
     <nuclide ao="5.849699999999999e-06" name="Ar38"/>
     <nuclide ao="0.009263125499999999" name="Ar40"/>
   </material>
-  <material depletable="true" id="21" name="Blanket_CA" temperature="899.9499999999999">
+  <material depletable="true" id="10" name="Blanket_CA" temperature="899.9499999999999" volume="2044129.6199357586">
     <density units="g/cm3" value="4.626"/>
     <nuclide ao="1.7862068965521698e-05" name="Li6"/>
     <nuclide ao="0.241361448275862" name="Li7"/>
@@ -24,14 +24,14 @@
     <nuclide ao="2.0689655172413797e-05" name="Th230"/>
     <nuclide ao="0.10342758620689657" name="Th232"/>
   </material>
-  <material depletable="true" id="22" name="Fuel_CA_2" temperature="899.9499999999999">
+  <material depletable="true" id="11" name="Fuel_CA_2" temperature="899.9499999999999" volume="381179.9086355615">
     <density units="g/cm3" value="4.905"/>
     <nuclide ao="2.5978647687002928e-06" name="Li6"/>
     <nuclide ao="0.2597838790035587" name="Li7"/>
     <nuclide ao="0.6441281138790036" name="F19"/>
     <nuclide ao="4.302802148858144e-05" name="U234"/>
     <nuclide ao="0.004813978945337904" name="U235"/>
-    <nuclide ao="0.09120635195004177" name="U238"/>
     <nuclide ao="2.205033580077214e-05" name="U236"/>
+    <nuclide ao="0.09120635195004177" name="U238"/>
   </material>
 </materials>
