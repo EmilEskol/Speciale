@@ -111,7 +111,7 @@ class Geometry_helper:
             fuel = openmc.Material.mix_materials([LiF_CA,UF4_LEU,ThF4],
                                                  norm_array([0.73*2,0.23*5,0.04*5]),
                                                  'ao',name="Fuel_CA_1") #from CA_2 table 1
-            fuel.set_density('g/cm3',4.905)
+            fuel.set_density('g/cm3',4.894)
             fuel.temperature = 626.8 + 273.15 # in Kelvin
             fuel.depletable = True
         elif fuel_name == 'Fuel_CA_2':
@@ -164,7 +164,8 @@ class Geometry_helper:
         settings.source = src
         settings.batches = 50
         settings.inactive = 10
-        settings.particles = 2000
+        settings.particles = 10000
+        print('number of particles from gh',settings.particles)
         return settings
     @staticmethod
     def set_geom_fuel_shell(sphere_ir,sphere_or,water_or,with_blanket=False,blanket_or=0,inner_moderator_height=-1
