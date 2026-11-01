@@ -243,7 +243,7 @@ class Alpha_N_calc:
             try:
                 os.remove(output_file)
             except:
-                print('no file to remove')
+                print(f'no file to remove for {mat.name}')
         
         n=0
         while not os.path.exists(output_file):
@@ -253,7 +253,7 @@ class Alpha_N_calc:
                 print("Waiting for SRModule to produce output...")
         
         #Waiting for SRIM to complete
-        time.sleep(3)
+        time.sleep(5)
         
         energies,stopping_powers = Alpha_N_calc.SR_file_read(mat.name,shared_folder)
         energies=np.array(energies)
@@ -512,7 +512,7 @@ class Alpha_N_calc:
     
     
     @staticmethod
-    def neutron_spectra_from_material(mat,E_min=0,E_max=5e6,nr_points=10000,nr_energies=500,printing=True,new_file=True):
+    def neutron_spectra_from_material(mat,E_min=0,E_max=1e7,nr_points=10000,nr_energies=500,printing=True,new_file=True):
         '''
         Method for calculating a continuous neutron spectrum from the
         alpha decay spectrum of a material and its (alpha,n) reaction
@@ -596,7 +596,7 @@ class Alpha_N_calc:
         
         integrent_splines = []
 
-        print("Getting cross sections...")
+        print(f"Getting cross sections... max energy  {E_max:.3g}")
         for nuc in mat.nuclides:
             #Getting crosssections
             cross_splines,tab = Alpha_N_calc.get_crossection_from_isotope(nuc.name,k=5,x_max=E_max,plot=False)
